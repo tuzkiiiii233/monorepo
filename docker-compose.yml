@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  app-a:
+    build: .
+    container_name: monorepo-app-a
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    command: sh -c "cd packages/app-a && pnpm start"
+    restart: unless-stopped
+
+  app-b:
+    build: .
+    container_name: monorepo-app-b
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    command: sh -c "cd packages/app-b && pnpm start"
+    restart: unless-stopped

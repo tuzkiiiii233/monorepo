@@ -1,0 +1,22 @@
+{
+  "name": "monorepo-demo",
+  "version": "1.0.0",
+  "description": "pnpm monorepo 示例项目 - Next.js + TypeScript",
+  "private": true,
+  "scripts": {
+    "dev:a": "pnpm --filter app-a dev",
+    "dev:b": "pnpm --filter app-b dev",
+    "dev:all": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "type-check": "pnpm -r type-check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.27.0",
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
