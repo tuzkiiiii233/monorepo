@@ -21,6 +21,9 @@ export default function Home() {
         <div className="p-6 bg-white shadow rounded-lg">
           <p className="text-xl">今天是: {formatDate(today)}</p>
         </div>
+        <div>
+          <p className="text-xl">test test test</p>
+        </div>
       </div>
     </main>
   );
