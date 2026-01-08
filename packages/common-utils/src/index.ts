@@ -10,3 +10,4 @@ export function add(a: number, b: number): number {
 export function formatDate(date: Date): string {
   return date.toLocaleDateString("zh-CN");
 }
+// test
