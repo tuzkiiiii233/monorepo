@@ -60,8 +60,8 @@ pnpm install
 pnpm build
 
 # 或单独构建
-pnpm --filter app-a build
-pnpm --filter app-b build
+pnpm build:a  # 构建 app-a
+pnpm build:b  # 构建 app-b
 ```
 
 ### 4. 启动应用
@@ -87,49 +87,95 @@ pnpm start
 # 启动 app-b (端口 3001)
 cd packages/app-b
 pnpm start
+
+# 或使用 nohup 后台运行
+nohup pnpm start > app-a.log 2>&1 &
 ```
 
-## 生产环境配置
+## Jenkins CI/CD 配置
 
-### 使用 PM2 管理进程
+### 增量构建和部署
 
-1. **安装 PM2**
+每个应用独立的 Jenkins Job 配置：
 
-```bash
-npm install -g pm2
+#### app-a 的 Jenkinsfile
+
+```groovy
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    extensions: [[$class: 'CloneOption', depth: 10]]
+                ])
+            }
+        }
+
+        stage('Check Changes') {
+            steps {
+                script {
+                    def hasChanges = sh(
+                        script: "git diff --name-only HEAD^ HEAD | grep -qE 'packages/(app-a|common-utils)'",
+                        returnStatus: true
+                    ) == 0
+
+                    if (!hasChanges) {
+                        echo "⏭️  app-a 没有变更，跳过构建"
+                        currentBuild.result = 'NOT_BUILT'
+                        error('No changes')
+                    }
+                }
+            }
+        }
+
+        stage('Install & Build') {
+            steps {
+                sh 'pnpm install'
+                sh 'pnpm --filter app-a build'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                    cd packages/app-a
+                    # 部署到服务器
+                    # 例如: rsync -avz .next/ user@server:/path/to/app-a/
+                    # 或: scp -r .next user@server:/path/to/app-a/
+                '''
+            }
+        }
+    }
+}
 ```
 
-2. **创建 PM2 配置文件** (已包含在项目中: `ecosystem.config.js`)
+#### app-b 的 Jenkinsfile
 
-3. **启动应用**
-
-```bash
-pm2 start ecosystem.config.js
+```groovy
+// 同上，只需将 app-a 替换为 app-b
 ```
 
-4. **常用 PM2 命令**
+### Shell 脚本方式（更简单）
 
 ```bash
-pm2 list              # 查看所有进程
-pm2 logs              # 查看日志
-pm2 restart all       # 重启所有应用
-pm2 stop all          # 停止所有应用
-pm2 delete all        # 删除所有进程
-```
+#!/bin/bash
 
-### 使用 Docker 部署
+# 检测变更
+if git diff --name-only HEAD^ HEAD | grep -qE "packages/(app-a|common-utils)"; then
+    echo "✅ 构建 app-a"
+    pnpm install
+    pnpm --filter app-a build
 
-参考项目中的 `Dockerfile` 和 `docker-compose.yml` 文件。
-
-```bash
-# 构建并启动
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
-
-# 停止
-docker-compose down
+    # 部署
+    cd packages/app-a
+    # 你的部署命令
+else
+    echo "⏭️  跳过 app-a"
+    exit 0
+fi
 ```
 
 ## 端口配置
@@ -137,15 +183,25 @@ docker-compose down
 - **app-a**: 3000
 - **app-b**: 3001
 
-如需修改端口，编辑对应应用的 `package.json` 中的启动脚本。
+如需修改端口，编辑对应应用的 `package.json` 中的启动脚本：
+
+```json
+{
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "start": "next start -p 3002"
+  }
+}
+```
 
 ## 环境变量
 
-如果需要配置环境变量，在各应用目录下创建 `.env.local` 文件：
+在各应用目录下创建 `.env.local` 文件：
 
 ```bash
 # packages/app-a/.env.local
 NEXT_PUBLIC_API_URL=https://api.example.com
+NODE_ENV=production
 ```
 
 ## 反向代理配置 (Nginx)
@@ -182,19 +238,15 @@ server {
 }
 ```
 
-## 监控和日志
-
-### 日志位置
-
-- PM2 日志: `~/.pm2/logs/`
-- 应用日志: 标准输出 (stdout/stderr)
-
-### 健康检查
+## 健康检查
 
 ```bash
 # 检查应用是否运行
 curl http://localhost:3000
 curl http://localhost:3001
+
+# 检查进程
+ps aux | grep "next start"
 ```
 
 ## 故障排查
@@ -208,6 +260,9 @@ curl http://localhost:3001
    lsof -i :3000
    # 或
    netstat -tulpn | grep 3000
+
+   # 杀死进程
+   kill -9 <PID>
    ```
 
 2. **依赖安装失败**
@@ -226,16 +281,30 @@ curl http://localhost:3001
    node --version
 
    # 清理构建缓存
-   rm -rf packages/*/. next
+   rm -rf packages/*/.next
    pnpm build
+   ```
+
+4. **Jenkins git diff 报错**
+
+   ```bash
+   # 确保 Jenkins 拉取了足够的历史
+   # 在 Jenkinsfile 中配置:
+   checkout([
+       $class: 'GitSCM',
+       extensions: [[$class: 'CloneOption', depth: 10]]
+   ])
+
+   # 或使用其他比较方式
+   git diff --name-only origin/main HEAD
    ```
 
 ## 性能优化建议
 
-1. 启用 Next.js 缓存
+1. 启用 Next.js 生产模式缓存
 2. 配置 CDN 加速静态资源
-3. 使用 PM2 cluster 模式提高并发能力
-4. 配置 Nginx 缓存和压缩
+3. 配置 Nginx 缓存和 gzip 压缩
+4. 使用进程管理工具（如 PM2）实现自动重启
 
 ## 联系方式
 
