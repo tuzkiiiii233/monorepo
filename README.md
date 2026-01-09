@@ -67,3 +67,41 @@ pnpm type-check
 - 两个 Next.js 应用共享同一个工具库
 - 支持并行开发和构建
 - 完整的 TypeScript 支持
+
+## CI/CD 增量构建
+
+在 Jenkins/GitLab CI 中实现增量构建：
+
+```bash
+# 检测 app-a 是否有变更
+if git diff --name-only HEAD^ HEAD | grep -qE "packages/(app-a|common-utils)"; then
+    echo "✅ 构建 app-a"
+    pnpm install
+    pnpm --filter app-a build
+    # 部署命令...
+else
+    echo "⏭️  跳过 app-a"
+    exit 0
+fi
+
+# 检测 app-b 是否有变更
+if git diff --name-only HEAD^ HEAD | grep -qE "packages/(app-b|common-utils)"; then
+    echo "✅ 构建 app-b"
+    pnpm install
+    pnpm --filter app-b build
+    # 部署命令...
+else
+    echo "⏭️  跳过 app-b"
+    exit 0
+fi
+```
+
+**注意事项：**
+
+- Jenkins 需要拉取至少 2 次提交的历史（不能用 `git clone --depth=1`）
+- 如果 `HEAD^` 不存在，可以用 `git diff origin/main HEAD` 代替
+- common-utils 变更时，app-a 和 app-b 都会被构建
+
+## 更多文档
+
+- [部署文档](./DEPLOYMENT.md) - 生产环境部署指南
