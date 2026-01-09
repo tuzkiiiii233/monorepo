@@ -6,6 +6,9 @@ export default function Home() {
   return (
     <main className="min-h-screen p-8">
       <h1 className="text-4xl font-bold mb-8">App A - Next.js Demo</h1>
+      <p className="text-lg mb-4">
+        测试增量构建 - {new Date().toLocaleString()}
+      </p>
 
       <div className="space-y-4">
         <div className="p-4 bg-blue-50 rounded">
