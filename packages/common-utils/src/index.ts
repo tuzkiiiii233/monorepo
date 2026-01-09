@@ -10,4 +10,8 @@ export function add(a: number, b: number): number {
 export function formatDate(date: Date): string {
   return date.toLocaleDateString("zh-CN");
 }
-// test
+
+// 新增：乘法函数
+export function multiply(a: number, b: number): number {
+  return a * b;
+}
